@@ -1,22 +1,26 @@
 <?php
+session_start();
 include 'db.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = $_POST['email'];
+    $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
 
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch();
-
-    if ($user) {
-        $reset_token = bin2hex(random_bytes(50));
-        $stmt = $pdo->prepare("UPDATE users SET reset_token = ? WHERE email = ?");
-        $stmt->execute([$reset_token, $email]);
-
-        // Normally you would send the reset link via email here
-        echo "<p class='text-green-400'>Password reset link has been sent to your email!</p>";
+    if (!$email) {
+        echo "<script>alert('Invalid email format');</script>";
     } else {
-        echo "<p class='text-red-400'>No user found with that email address</p>";
+        // Check if email exists
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if ($user) {
+            // Store the email in session to carry over to the change password form
+            $_SESSION['reset_email'] = $email;
+            header("Location: change_password.php");
+            exit;
+        } else {
+            echo "<script>alert('Email not found');</script>";
+        }
     }
 }
 ?>
@@ -24,16 +28,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Change Password</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.3/dist/tailwind.min.css" rel="stylesheet">
-    <title>Forgot Password</title>
 </head>
-<body class="bg-black text-yellow-400">
-<div class="container mx-auto py-10">
-    <h2 class="text-3xl mb-4">Forgot Password</h2>
-    <form method="POST" action="" class="space-y-4">
-        <input type="email" name="email" placeholder="Enter your email" required class="w-full p-2 border border-yellow-400 bg-black text-yellow-400">
-        <button type="submit" class="w-full bg-yellow-400 text-black py-2">Send Reset Link</button>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center">
+    <form method="POST" class="max-w-lg mx-auto p-8 space-y-4 bg-gray-800 rounded mt-10 text-yellow-400">
+        <h2 class="text-4xl font-bold text-center mb-6">Change Password</h2>
+        <input type="email" name="email" placeholder="Email" required class="w-full p-3 border rounded bg-gray-900">
+        <button type="submit" class="w-full bg-yellow-400 text-black py-3 rounded font-semibold">Verify Email</button>
+        <p class="text-center mt-4">
+            Remembered your password? <a href="login.php" class="text-yellow-300 hover:underline">Login</a>
+        </p>
     </form>
-</div>
 </body>
 </html>
